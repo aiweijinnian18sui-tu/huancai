@@ -1,0 +1,7 @@
+{
+  "name": "幻彩影棚",
+  "description": "由 Gemini 提供支持的专业产品照片编辑工具。只需输入指令，即可轻松移除背景、清理杂物或变换光影。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
