@@ -1,48 +1,39 @@
-
 import { GoogleGenAI } from "@google/genai";
 
-const MODEL_NAME = 'gemini-2.5-flash-image';
+const MODEL_NAME = 'gemini-1.5-flash'; // 确保模型名称兼容最新版本
 
 export async function editImage(base64Data: string, mimeType: string, prompt: string): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  // 关键：Vite 项目应使用 import.meta.env 获取环境变量
+  const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || '';
+  const genAI = new GoogleGenAI(apiKey);
   
-  // 确保 base64 数据不包含前缀
   const base64Content = base64Data.split(',')[1] || base64Data;
 
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: base64Content,
-              mimeType: mimeType,
-            },
-          },
-          {
-            text: `你是一位顶级电商摄影修图专家。请根据以下中文指令对图像进行专业级编辑，保持产品本身不发生变形或质感丢失：${prompt}。仅返回处理后的图像。`,
-          },
-        ],
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          data: base64Content,
+          mimeType: mimeType,
+        },
       },
-    });
+      {
+        text: `你是一位顶级电商摄影修图专家。请根据以下中文指令对图像进行编辑：${prompt}。仅返回处理后的图像 base64 数据。`,
+      },
+    ]);
 
-    // 遍历响应部分寻找图像数据
-    const candidates = response.candidates;
-    if (candidates && candidates.length > 0) {
-      for (const part of candidates[0].content.parts) {
-        if (part.inlineData) {
-          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        }
+    const response = await result.response;
+    // 解析返回的图像部分
+    for (const part of response.candidates?.[0].content.parts || []) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
       }
     }
 
-    throw new Error("模型处理成功但未返回可用的图像。可能是指令过于模糊。");
+    throw new Error("模型未返回图像数据。");
   } catch (error: any) {
-    console.error("Gemini 编辑服务异常:", error);
-    if (error.message?.includes('API key')) {
-      throw new Error("API Key 无效或未设置。");
-    }
-    throw new Error(error.message || "连接 AI 影棚失败，请稍后重试。");
+    console.error(error);
+    throw new Error(error.message || "AI 处理出错");
   }
 }
