@@ -2,90 +2,55 @@ import React, { useState, useRef } from 'react';
 import { editImage } from './geminiService.ts';
 import { Button } from './Button.tsx';
 
-// 在当前文件直接定义接口，避免引用缺失的 types.ts
-interface ImageState {
-  original: string | null;
-  edited: string | null;
-  mimeType: string | null;
-}
-
 const App: React.FC = () => {
-  const [imageState, setImageState] = useState<ImageState>({ original: null, edited: null, mimeType: null });
+  const [image, setImage] = useState<string | null>(null);
+  const [edited, setEdited] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        setImageState({ original: ev.target?.result as string, edited: null, mimeType: file.type });
-        setError(null);
-      };
+      reader.onload = (ev) => setImage(ev.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleApplyMagic = async () => {
-    if (!imageState.original || !prompt.trim()) return;
-    setIsProcessing(true);
-    setError(null);
-    try {
-      const result = await editImage(imageState.original, imageState.mimeType || 'image/jpeg', prompt);
-      setImageState(prev => ({ ...prev, edited: result }));
-    } catch (err: any) {
-      setError(err.message || '处理失败，请重试');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
-      <main className="max-w-4xl mx-auto space-y-8 text-center">
-        <header className="space-y-4">
-          <h1 className="text-4xl font-extrabold tracking-tight">幻彩 AI 影棚</h1>
-          <p className="text-slate-400">由 Gemini 提供支持的专业产品修图工具</p>
-        </header>
-
-        <section className="glass-panel rounded-3xl p-8 border border-white/10 bg-white/5">
-          {!imageState.original ? (
-            <div className="py-20">
-              <Button onClick={() => fileInputRef.current?.click()}>选择产品照片</Button>
-              <input type="file" ref={fileInputRef} onChange={onFileUpload} accept="image/*" className="hidden" />
+    <div style={{ padding: '40px', background: '#0f172a', minHeight: '100vh', color: 'white', textAlign: 'center' }}>
+      <h1 style={{ marginBottom: '30px' }}>幻彩 AI 影棚</h1>
+      <div style={{ maxWidth: '600px', margin: '0 auto', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '20px' }}>
+        {!image ? (
+          <Button onClick={() => fileInputRef.current?.click()}>选择图片上传</Button>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <img src={image} style={{ width: '100%', borderRadius: '10px' }} alt="原图" />
+              {edited ? <img src={edited} style={{ width: '100%', borderRadius: '10px' }} alt="效果图" /> : <div style={{ background: '#1e293b', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>等待处理</div>}
             </div>
-          ) : (
-            <div className="space-y-6 text-left">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-xs font-bold text-slate-500 mb-2">原始图片</p>
-                  <img src={imageState.original} alt="Original" className="w-full rounded-xl" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-indigo-400 mb-2">处理结果</p>
-                  <div className="relative aspect-video rounded-xl border border-indigo-500/30 bg-indigo-500/5 flex items-center justify-center overflow-hidden">
-                    {isProcessing ? <p className="animate-pulse">AI 处理中...</p> : 
-                     imageState.edited ? <img src={imageState.edited} alt="Edited" className="w-full h-full object-contain" /> : 
-                     <p className="text-slate-600">等待指令...</p>}
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <input 
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="输入修图指令..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white"
-                />
-                <Button onClick={handleApplyMagic} isLoading={isProcessing}>开始</Button>
-              </div>
-              {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-            </div>
-          )}
-        </section>
-      </main>
+            <input 
+              value={prompt} 
+              onChange={e => setPrompt(e.target.value)} 
+              placeholder="输入修图指令，如：换成大理石背景" 
+              style={{ padding: '12px', borderRadius: '8px', border: 'none', background: '#334155', color: 'white' }}
+            />
+            <Button 
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  const res = await editImage(image, 'image/jpeg', prompt);
+                  setEdited(res);
+                } catch (e) { alert('失败'); }
+                setLoading(false);
+              }} 
+              isLoading={loading}
+            >开始 AI 修复</Button>
+          </div>
+        )}
+        <input type="file" ref={fileInputRef} onChange={handleUpload} style={{ display: 'none' }} accept="image/*" />
+      </div>
     </div>
   );
 };
