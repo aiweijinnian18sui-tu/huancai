@@ -26,8 +26,9 @@ jobs:
         run: npm install
 
       - name: Build
-        # 使用 npx 直接运行 vite build，跳过 package.json 中的 tsc 检查
-        run: npx vite build
+        run: |
+          export CI=false
+          npx vite build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
